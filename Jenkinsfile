@@ -1,7 +1,7 @@
 pipeline {
-    agent {
-        kubernetes {
-            yaml """
+   agent {
+    kubernetes {
+        yaml """
 apiVersion: v1
 kind: Pod
 spec:
@@ -15,13 +15,15 @@ spec:
     volumeMounts:
     - name: maven-cache
       mountPath: /root/.m2
+  - name: cosign
+    image: gcr.io/projectsigstore/cosign:v2.4.0
+    command: [sleep, infinity]
   volumes:
   - name: maven-cache
     emptyDir: {}
 """
-        }
     }
-
+}
     options {
         timeout(time: 30, unit: 'MINUTES')
         disableConcurrentBuilds()
