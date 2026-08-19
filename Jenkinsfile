@@ -116,6 +116,14 @@ spec:
             }
         }
 
+       stage('Verify cosign') {
+             steps {
+                 container('cosign') {
+                     sh 'cosign version'
+                 }
+    }
+}
+
     }
 
     post {
