@@ -84,7 +84,7 @@ spec:
             }
         }
 
-        stage('SLSA L2 Provenance — sign with cosign') {
+        stage('SLSA L2 Provenance') {
             steps {
                 container('maven') {
                     script {
@@ -128,31 +128,27 @@ spec:
   ]
 }"""
                         writeFile file: 'provenance-l2.json', text: provenance
+                        sh 'cat provenance-l2.json'
                     }
 
-                    withCredentials([string(credentialsId: 'cosign-private-key', variable: 'COSIGN_KEY_CONTENT')]) {
+                    withCredentials([file(credentialsId: 'cosign-private-key', variable: 'COSIGN_KEY_PATH')]) {
                         sh '''
-                            printf '%s' "${COSIGN_KEY_CONTENT}" > /tmp/cosign.key
-                            chmod 600 /tmp/cosign.key
-
                             export COSIGN_PASSWORD=""
 
                             JAR="target/spring-petclinic-4.0.0-SNAPSHOT.jar"
 
                             cosign sign-blob \
-                                --key /tmp/cosign.key \
+                                --key "${COSIGN_KEY_PATH}" \
                                 --output-signature "${JAR}.sig" \
                                 "${JAR}"
 
                             cosign sign-blob \
-                                --key /tmp/cosign.key \
+                                --key "${COSIGN_KEY_PATH}" \
                                 --output-signature "provenance-l2.json.sig" \
                                 "provenance-l2.json"
 
-                            echo "Signed artifacts:"
+                            echo "Signatures written:"
                             ls -lh "${JAR}.sig" "provenance-l2.json.sig"
-
-                            rm -f /tmp/cosign.key
                         '''
                     }
 
@@ -161,12 +157,6 @@ spec:
                         'provenance-l2.json.sig',
                         'target/spring-petclinic-4.0.0-SNAPSHOT.jar.sig'
                     ].join(', '), fingerprint: true
-                }
-            }
-
-            post {
-                always {
-                    sh 'rm -f /tmp/cosign.key || true'
                 }
             }
         }
