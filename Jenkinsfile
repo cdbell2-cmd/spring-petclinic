@@ -140,14 +140,16 @@ spec:
                             cosign sign-blob \
                                 --key "${COSIGN_KEY_PATH}" \
                                 --output-signature "${JAR}.sig" \
+                                --tlog-upload=false \
                                 "${JAR}"
 
                             cosign sign-blob \
                                 --key "${COSIGN_KEY_PATH}" \
                                 --output-signature "provenance-l2.json.sig" \
+                                --tlog-upload=false \
                                 "provenance-l2.json"
 
-                            echo "Signatures written:"
+                            echo "Signed artifacts:"
                             ls -lh "${JAR}.sig" "provenance-l2.json.sig"
                         '''
                     }
