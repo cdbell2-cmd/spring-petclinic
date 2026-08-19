@@ -57,7 +57,9 @@ spec:
         stage('Build') {
             steps {
                 container('maven') {
-                    sh './mvnw -B -DskipTests package'
+                    // cyclonedx:makeAggregateBom must be invoked explicitly —
+                    // the plugin is in pom.xml but not bound to a lifecycle phase by default
+                    sh './mvnw -B -DskipTests package cyclonedx:makeAggregateBom'
                 }
             }
         }
@@ -132,6 +134,8 @@ spec:
                         sh '''
                             printf '%s' "${COSIGN_KEY_CONTENT}" > /tmp/cosign.key
                             chmod 600 /tmp/cosign.key
+
+                            export COSIGN_PASSWORD=""
 
                             JAR="target/spring-petclinic-4.0.0-SNAPSHOT.jar"
 
