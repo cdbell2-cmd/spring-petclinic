@@ -145,6 +145,10 @@ spec:
                                 --tlog-upload=false \
                                 "provenance-l2.json"
 
+                            # cosign creates sig files 0600 (root-only); the JNLP sidecar
+                            # runs as jenkins (uid 1000) and cannot read them for archiving
+                            chmod 644 "${JAR}.sig" "provenance-l2.json.sig"
+
                             echo "Signed artifacts:"
                             ls -lh "${JAR}.sig" "provenance-l2.json.sig"
                         '''
