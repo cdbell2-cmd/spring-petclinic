@@ -28,7 +28,6 @@ spec:
     }
 
     stages {
-
         stage('Checkout') {
             steps {
                 checkout scm
@@ -57,8 +56,6 @@ spec:
         stage('Build') {
             steps {
                 container('maven') {
-                    // cyclonedx:makeAggregateBom must be invoked explicitly —
-                    // the plugin is in pom.xml but not bound to a lifecycle phase by default
                     sh './mvnw -B -DskipTests package cyclonedx:makeAggregateBom'
                 }
             }
@@ -134,7 +131,6 @@ spec:
                     withCredentials([file(credentialsId: 'cosign-private-key', variable: 'COSIGN_KEY_PATH')]) {
                         sh '''
                             export COSIGN_PASSWORD=""
-
                             JAR="target/spring-petclinic-4.0.0-SNAPSHOT.jar"
 
                             cosign sign-blob \
@@ -153,16 +149,11 @@ spec:
                             ls -lh "${JAR}.sig" "provenance-l2.json.sig"
                         '''
                     }
-
-                    archiveArtifacts artifacts: [
-                        'provenance-l2.json',
-                        'provenance-l2.json.sig',
-                        'target/spring-petclinic-4.0.0-SNAPSHOT.jar.sig'
-                    ].join(', '), fingerprint: true
                 }
+
+                archiveArtifacts artifacts: 'provenance-l2.json, provenance-l2.json.sig, target/spring-petclinic-4.0.0-SNAPSHOT.jar.sig'
             }
         }
-
     }
 
     post {
