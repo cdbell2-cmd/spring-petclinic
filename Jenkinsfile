@@ -1,7 +1,7 @@
 pipeline {
-   agent {
-    kubernetes {
-        yaml """
+    agent {
+        kubernetes {
+            yaml """
 apiVersion: v1
 kind: Pod
 spec:
@@ -15,15 +15,12 @@ spec:
     volumeMounts:
     - name: maven-cache
       mountPath: /root/.m2
-  - name: cosign
-    image: gcr.io/projectsigstore/cosign:v2.4.0
-    command: [sleep, infinity]
   volumes:
   - name: maven-cache
     emptyDir: {}
 """
+        }
     }
-}
     options {
         timeout(time: 30, unit: 'MINUTES')
         disableConcurrentBuilds()
@@ -116,11 +113,17 @@ spec:
             }
         }
 
-       stage('Verify cosign') {
-             steps {
-                 container('cosign') {
-                     sh 'cosign version'
-                 }
+   stage('Setup') {
+    steps {
+        container('maven') {
+            sh '''
+                COSIGN_VERSION=v2.4.0
+                curl -sSfLo /usr/local/bin/cosign \
+                    "https://github.com/sigstore/cosign/releases/download/${COSIGN_VERSION}/cosign-linux-amd64"
+                chmod +x /usr/local/bin/cosign
+                cosign version
+            '''
+        }
     }
 }
 
