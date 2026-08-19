@@ -33,15 +33,8 @@ spec:
             steps {
                 checkout scm
                 script {
-                    // Capture git context for later stages
-                    env.GIT_COMMIT_SHA = sh(
-                        script: 'git rev-parse HEAD',
-                        returnStdout: true
-                    ).trim()
-                    env.GIT_REPO_URL = sh(
-                        script: 'git remote get-url origin',
-                        returnStdout: true
-                    ).trim()
+                    env.GIT_COMMIT_SHA = sh(script: 'git rev-parse HEAD', returnStdout: true).trim()
+                    env.GIT_REPO_URL   = sh(script: 'git remote get-url origin', returnStdout: true).trim()
                     echo "Building commit: ${env.GIT_COMMIT_SHA}"
                 }
             }
@@ -63,20 +56,68 @@ spec:
             }
             post {
                 always {
-                    junit testResults: 'target/surefire-reports/*.xml',
-                          allowEmptyResults: true
+                    junit testResults: 'target/surefire-reports/*.xml', allowEmptyResults: true
                 }
+            }
+        }
+
+        stage('Archive') {
+            steps {
+                archiveArtifacts artifacts: 'target/spring-petclinic-*.jar', fingerprint: true
+                archiveArtifacts artifacts: 'target/bom.json, target/bom.xml', allowEmptyArchive: true
+            }
+        }
+
+        stage('SLSA L1 Provenance') {
+            steps {
+                container('maven') {
+                    script {
+                        def buildTime = sh(script: 'date -u +"%Y-%m-%dT%H:%M:%SZ"', returnStdout: true).trim()
+                        def jarFile   = 'target/spring-petclinic-4.0.0-SNAPSHOT.jar'
+                        def jarSha256 = sh(
+                            script: "sha256sum ${jarFile} | awk '{print \$1}'",
+                            returnStdout: true
+                        ).trim()
+
+                        def provenance = """{
+  "slsa_level": "1",
+  "subject": {
+    "name": "spring-petclinic-4.0.0-SNAPSHOT.jar",
+    "digest": { "sha256": "${jarSha256}" }
+  },
+  "source": {
+    "repository": "${env.GIT_REPO_URL}",
+    "commit": "${env.GIT_COMMIT_SHA}",
+    "branch": "${env.BRANCH_NAME ?: 'main'}"
+  },
+  "builder": {
+    "id": "${env.JENKINS_URL}",
+    "platform": "CloudBees CI on EKS"
+  },
+  "build": {
+    "url": "${env.BUILD_URL}",
+    "job": "${env.JOB_NAME}",
+    "number": "${env.BUILD_NUMBER}",
+    "tool": "maven:3.9-eclipse-temurin-17"
+  },
+  "metadata": {
+    "built_at": "${buildTime}",
+    "sbom": "target/bom.json"
+  }
+}"""
+                        writeFile file: 'provenance-l1.json', text: provenance
+                        echo "=== SLSA L1 Provenance ==="
+                        sh 'cat provenance-l1.json'
+                    }
+                }
+                archiveArtifacts artifacts: 'provenance-l1.json', fingerprint: true
             }
         }
 
     }
 
     post {
-        success {
-            echo "Build succeeded: ${env.JOB_NAME} #${env.BUILD_NUMBER}"
-        }
-        failure {
-            echo "Build failed: check the stage logs above"
-        }
+        success { echo "Build succeeded: ${env.JOB_NAME} #${env.BUILD_NUMBER}" }
+        failure { echo "Build failed: check the stage logs above" }
     }
 }
