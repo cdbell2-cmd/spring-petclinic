@@ -80,6 +80,12 @@ spec:
 
         stage('SLSA L1 Provenance') {
             steps {
+                script {
+                    // provenanceRecorder generates attestations only when the build
+                    // result is already SUCCESS; mid-pipeline it is still null, so
+                    // set it explicitly (Jenkins only allows it to worsen afterward)
+                    currentBuild.result = 'SUCCESS'
+                }
                 provenanceRecorder artifactFilter: 'target/spring-petclinic-*.jar',
                                    targetDirectory: 'target/slsa'
                 archiveArtifacts artifacts: 'target/slsa/*.intoto.jsonl', fingerprint: true
