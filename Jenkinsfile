@@ -4,10 +4,13 @@ pipeline {
             yaml """
 apiVersion: v1
 kind: Pod
+metadata:
+  namespace: cloudbees-agents
 spec:
+  serviceAccountName: jenkins-agents
   containers:
   - name: maven
-    image: maven:3.9-eclipse-temurin-17
+    image: repocache.nonprod.ppops.net/docker/maven:3.9-eclipse-temurin-17
     command: [sleep, infinity]
     env:
     - name: MAVEN_OPTS
@@ -25,9 +28,11 @@ spec:
     options {
         timeout(time: 30, unit: 'MINUTES')
         disableConcurrentBuilds()
+        timestamps()
     }
 
     stages {
+
         stage('Checkout') {
             steps {
                 checkout scm
@@ -39,24 +44,12 @@ spec:
             }
         }
 
-        stage('Setup') {
-            steps {
-                container('maven') {
-                    sh '''
-                        COSIGN_VERSION=v2.4.0
-                        curl -sSfLo /usr/local/bin/cosign \
-                            "https://github.com/sigstore/cosign/releases/download/${COSIGN_VERSION}/cosign-linux-amd64"
-                        chmod +x /usr/local/bin/cosign
-                        cosign version
-                    '''
-                }
-            }
-        }
-
         stage('Build') {
             steps {
                 container('maven') {
-                    sh './mvnw -B -DskipTests package cyclonedx:makeAggregateBom'
+                    // makeAggregateBom invoked explicitly so it works with or
+                    // without the plugin being declared in the app's pom.xml
+                    sh './mvnw -B -DskipTests package org.cyclonedx:cyclonedx-maven-plugin:2.8.0:makeAggregateBom'
                 }
             }
         }
@@ -74,94 +67,10 @@ spec:
             }
         }
 
-        stage('Archive') {
-            steps {
-                archiveArtifacts artifacts: 'target/spring-petclinic-*.jar', fingerprint: true
-                archiveArtifacts artifacts: 'target/bom.json, target/bom.xml', allowEmptyArchive: true
-            }
-        }
-
-        stage('SLSA L2 Provenance') {
-            steps {
-                container('maven') {
-                    script {
-                        def buildTime = sh(script: 'date -u +"%Y-%m-%dT%H:%M:%SZ"', returnStdout: true).trim()
-                        def jarFile   = 'target/spring-petclinic-4.0.0-SNAPSHOT.jar'
-                        def jarSha256 = sh(
-                            script: "sha256sum ${jarFile} | awk '{print \$1}'",
-                            returnStdout: true
-                        ).trim()
-
-                        def provenance = """{
-  "buildDefinition": {
-    "buildType": "https://cloudbees.com/jenkinsfile/v1",
-    "externalParameters": {
-      "repository": "${env.GIT_REPO_URL}",
-      "ref": "${env.GIT_COMMIT_SHA}",
-      "branch": "${env.BRANCH_NAME ?: 'main'}"
-    },
-    "internalParameters": {
-      "buildUrl": "${env.BUILD_URL}",
-      "controllerId": "${env.JENKINS_URL}",
-      "jobName": "${env.JOB_NAME}",
-      "buildNumber": "${env.BUILD_NUMBER}",
-      "buildTool": "maven:3.9-eclipse-temurin-17"
-    }
-  },
-  "runDetails": {
-    "builder": {
-      "id": "https://cloudbees-ci.proofpoint.com"
-    },
-    "metadata": {
-      "invocationId": "${env.BUILD_URL}",
-      "startedOn": "${buildTime}"
-    }
-  },
-  "subject": [
-    {
-      "name": "spring-petclinic-4.0.0-SNAPSHOT.jar",
-      "digest": { "sha256": "${jarSha256}" }
-    }
-  ]
-}"""
-                        writeFile file: 'provenance-l2.json', text: provenance
-                        sh 'cat provenance-l2.json'
-                    }
-
-                    withCredentials([file(credentialsId: 'cosign-private-key', variable: 'COSIGN_KEY_PATH')]) {
-                        sh '''
-                            export COSIGN_PASSWORD=""
-                            JAR="target/spring-petclinic-4.0.0-SNAPSHOT.jar"
-
-                            cosign sign-blob \
-                                --key "${COSIGN_KEY_PATH}" \
-                                --output-signature "${JAR}.sig" \
-                                --tlog-upload=false \
-                                "${JAR}"
-
-                            cosign sign-blob \
-                                --key "${COSIGN_KEY_PATH}" \
-                                --output-signature "provenance-l2.json.sig" \
-                                --tlog-upload=false \
-                                "provenance-l2.json"
-
-                            # cosign creates sig files 0600 (root-only); the JNLP sidecar
-                            # runs as jenkins (uid 1000) and cannot read them for archiving
-                            chmod 644 "${JAR}.sig" "provenance-l2.json.sig"
-
-                            echo "Signed artifacts:"
-                            ls -lh "${JAR}.sig" "provenance-l2.json.sig"
-                        '''
-                    }
-                }
-
-                archiveArtifacts artifacts: 'provenance-l2.json, provenance-l2.json.sig, target/spring-petclinic-4.0.0-SNAPSHOT.jar.sig'
-            }
-        }
     }
 
     post {
-        success { echo "SLSA L2 build complete: ${env.JOB_NAME} #${env.BUILD_NUMBER}" }
+        success { echo "Build succeeded: ${env.JOB_NAME} #${env.BUILD_NUMBER}" }
         failure { echo "Build failed: check the stage logs above" }
     }
 }
