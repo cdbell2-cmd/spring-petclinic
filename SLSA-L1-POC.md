@@ -1,11 +1,5 @@
 # SLSA Level 1 Implementation POC — Proofpoint
 
-**Target:** SLSA Level 1 on one agreed nonprod controller by **end of August 2026** (per Success Path proposal, 08/04/26)
-**Reference controller:** `buildrel` — `https://cloudbees.nonprod-cia-awsuse.nonprod.ppops.net/buildrel/`
-**Platform:** CloudBees CI Modern on AWS EKS · Jenkins `2.541.1.35570` · CJOC-managed controller
-**Build tool:** Maven (`./mvnw`) · **Example app:** spring-petclinic (stand-in for any Proofpoint Maven service)
-**Time:** ~60 minutes
-
 Read `SLSA-Feynman.md` first if you have not. SLSA Level 2 is covered separately in `SLSA-L2-POC-Proofpoint.md` — do not start it until every item in the L1 checklist at the bottom of this document is green.
 
 ---
