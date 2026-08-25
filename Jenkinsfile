@@ -1,3 +1,6 @@
+// SLSA Level 1 POC — complete Jenkinsfile (see SLSA-L1-POC-Proofpoint.md §3.3)
+// Rename to "Jenkinsfile" at the repo root of the spring-petclinic fork.
+// Requires on the controller: SLSA Provenance Attestation plugin (id: slsa).
 pipeline {
     agent {
         kubernetes {
@@ -7,7 +10,10 @@ kind: Pod
 spec:
   containers:
   - name: maven
-    image: repocache.nonprod.ppops.net/docker/maven:3.9-eclipse-temurin-17
+    # Public image (Docker Hub). Inside Proofpoint, switch to the internal
+    # mirror: repocache.nonprod.ppops.net/docker/maven:3.9-eclipse-temurin-17
+    # (repocache is internal-only; it does not resolve outside their network)
+    image: maven:3.9-eclipse-temurin-17
     command: [sleep, infinity]
     env:
     - name: MAVEN_OPTS
@@ -63,10 +69,27 @@ spec:
             }
         }
 
+        stage('Archive') {
+            steps {
+                // fingerprint: true records the artifact hash in the Jenkins
+                // fingerprint database — traceable across jobs via copyartifact
+                archiveArtifacts artifacts: 'target/spring-petclinic-*.jar', fingerprint: true
+                archiveArtifacts artifacts: 'target/bom.json, target/bom.xml', allowEmptyArchive: true
+            }
+        }
+
+        stage('SLSA L1 Provenance') {
+            steps {
+                provenanceRecorder artifactFilter: 'target/spring-petclinic-*.jar',
+                                   targetDirectory: 'target/slsa'
+                archiveArtifacts artifacts: 'target/slsa/*.intoto.jsonl', fingerprint: true
+            }
+        }
+
     }
 
     post {
-        success { echo "Build succeeded: ${env.JOB_NAME} #${env.BUILD_NUMBER}" }
+        success { echo "SLSA L1 build complete: ${env.JOB_NAME} #${env.BUILD_NUMBER}" }
         failure { echo "Build failed: check the stage logs above" }
     }
 }
