@@ -4,10 +4,7 @@ pipeline {
             yaml """
 apiVersion: v1
 kind: Pod
-metadata:
-  namespace: cloudbees-agents
 spec:
-  serviceAccountName: jenkins-agents
   containers:
   - name: maven
     image: repocache.nonprod.ppops.net/docker/maven:3.9-eclipse-temurin-17
