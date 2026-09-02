@@ -55,7 +55,7 @@ spec:
             steps {
                 container('maven') {
                     // package + SBOM, then Jib tarball (writes target/jib-image.digest without a registry)
-                    sh './mvnw -B -DskipTests package org.cyclonedx:cyclonedx-maven-plugin:2.8.0:makeAggregateBom jib:buildTar'
+                    sh './mvnw -B -DskipTests package org.cyclonedx:cyclonedx-maven-plugin:2.8.0:makeAggregateBom com.google.cloud.tools:jib-maven-plugin:3.4.4:buildTar'
                 }
             }
         }
