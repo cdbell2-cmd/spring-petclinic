@@ -1,7 +1,5 @@
 # SLSA Level 1 POC — Proofpoint (spring-petclinic)
 
-This branch (`proofpoint-minimum`) contains the minimum files needed to run the SLSA Level 1 POC on a Proofpoint CloudBees CI controller. See `README-proofpoint-minimum.md` for the rationale behind what was kept and what was removed.
-
 **Target:** SLSA Level 1 on one agreed nonprod controller by end of August 2026
 **Reference controller:** `buildrel` — `https://cloudbees.nonprod-cia-awsuse.nonprod.ppops.net/buildrel/`
 **Platform:** CloudBees CI Modern on AWS EKS · Jenkins `2.541.1.35570` · CJOC-managed controller
