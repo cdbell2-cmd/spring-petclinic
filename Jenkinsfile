@@ -74,7 +74,7 @@ spec:
                 // fingerprint: true records the artifact hash in the Jenkins
                 // fingerprint database — traceable across jobs via copyartifact
                 archiveArtifacts artifacts: 'target/spring-petclinic-*.jar', fingerprint: true
-                archiveArtifacts artifacts: 'target/bom.json, target/bom.xml', allowEmptyArchive: true
+                archiveArtifacts artifacts: 'target/bom.json, target/bom.xml', allowEmptyArchive: true, fingerprint: true
             }
         }
 
