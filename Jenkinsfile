@@ -86,9 +86,13 @@ spec:
                     // set it explicitly (Jenkins only allows it to worsen afterward)
                     currentBuild.result = 'SUCCESS'
                 }
+                // targetDirectory is workspace-root 'slsa', NOT 'target/slsa':
+                // the recorder runs in the jnlp container as user 'jenkins',
+                // while the maven container created target/ as root — mkdirs
+                // under target/ fails with AccessDeniedException
                 provenanceRecorder artifactFilter: 'target/spring-petclinic-*.jar',
-                                   targetDirectory: 'target/slsa'
-                archiveArtifacts artifacts: 'target/slsa/*.intoto.jsonl', fingerprint: true
+                                   targetDirectory: 'slsa'
+                archiveArtifacts artifacts: 'slsa/*.intoto.jsonl', fingerprint: true
             }
         }
 
